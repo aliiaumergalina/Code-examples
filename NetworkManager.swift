@@ -1,6 +1,6 @@
-
 import Foundation
 
+// Перечисление поддерживаемых HTTP методов
 enum HTTPMethod: String {
     case get = "GET"
     case post = "POST"
@@ -10,7 +10,7 @@ enum HTTPMethod: String {
 
 final class NetworkManager {
     
-    // Used in URLRequest extensions
+    // Общий URLSession для всех сетевых запросов
     static let session = URLSession(configuration: URLSessionConfiguration.default)
     
     static let decoder: JSONDecoder = {
@@ -25,8 +25,10 @@ final class NetworkManager {
          return encoder
      }()
     
+    // Замыкание для получения access token
     var accessTokenProvider: (() -> String?)?
     
+    // Создает базовый URLRequest с указанным путем и токеном авторизации
     func request(path: String) throws -> URLRequest {
         let baseURL = "https://baseURL"
         let urlString = baseURL + path
@@ -37,6 +39,7 @@ final class NetworkManager {
     
         var request = URLRequest(url: url)
         
+        // Добавляем токен авторизации в заголовки, если он доступен
         if let token = accessTokenProvider?() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -45,12 +48,14 @@ final class NetworkManager {
 }
 
 extension URLRequest {
+    // Выполняет запрос и декодирует ответ в указанный тип
     func runAndDecode<T: Decodable>(type: T.Type = T.self) async throws -> T {
         let data = try await run()
         let response = try NetworkManager.decoder.decode(APIResponse<T>.self, from: data)
         return response.data
     }
     
+    // Выполняет запрос и возвращает полученные данные
     @discardableResult
     func run() async throws -> Data {
         let (data, response) = try await NetworkManager.session.data(for: self)
@@ -58,6 +63,7 @@ extension URLRequest {
         return data
     }
     
+    // Проверяет статус код HTTP ответа
     private func validate(response: URLResponse) throws {
         guard let response = response as? HTTPURLResponse else {
             return
@@ -71,6 +77,7 @@ extension URLRequest {
         }
     }
     
+    // Добавляет тело запроса и устанавливает HTTP метод
     func withBody<T: Encodable>(_ body: T, method: HTTPMethod) throws -> URLRequest {
         var request = self
         request.httpMethod = method.rawValue
@@ -79,6 +86,7 @@ extension URLRequest {
         return request
     }
     
+    // Добавляет параметр запроса в URL
     func withQuery(name: String, value: String) -> URLRequest {
         guard var urlComponents = URLComponents(url: url!, resolvingAgainstBaseURL: true) else {
             return self
@@ -92,6 +100,7 @@ extension URLRequest {
         return request
     }
     
+    // Устанавливает HTTP метод запроса
     func withMethod(_ method: HTTPMethod) throws -> URLRequest {
         var request = self
         request.httpMethod = method.rawValue
@@ -99,3 +108,14 @@ extension URLRequest {
         return request
     }
 }
+
+// Пример использования
+/*
+    func getProfiles() async throws -> [Profile] {
+       try await networkManager
+            .request(path: "/v0/profile")
+            .runAndDecode()
+    }
+*/
+
+
